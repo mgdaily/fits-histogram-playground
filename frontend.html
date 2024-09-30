@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Render 8-bit Images</title>
+    <style>
+        .slider-container {
+            margin: 10px 0;
+        }
+        .value-display {
+            margin-left: 10px;
+        }
+        .image-container {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="image-container" id="image-container-R">
+        <canvas id="imageCanvas-R" width="800" height="800"></canvas>
+        <div class="slider-container">
+            <label for="low-R">Low (Black)</label>
+            <button id="low-decrement-R">-</button>
+            <input type="range" id="low-R" min="0" max="65535" value="0" step="1">
+            <button id="low-increment-R">+</button>
+            <span class="value-display" id="low-value-16bit-R">16-bit: 0</span>
+            <input type="number" id="low-input-R" min="0" max="65535" value="0">
+        </div>
+        <div class="slider-container">
+            <label for="high-R">High (White)</label>
+            <button id="high-decrement-R">-</button>
+            <input type="range" id="high-R" min="0" max="65535" value="65535" step="1">
+            <button id="high-increment-R">+</button>
+            <span class="value-display" id="high-value-16bit-R">16-bit: 255</span>
+            <input type="number" id="high-input-R" min="0" max="65535" value="65535">
+        </div>
+        <button id="zscale-R">ZScale</button>
+    </div>
+
+    <div class="image-container" id="image-container-G">
+        <canvas id="imageCanvas-G" width="800" height="800"></canvas>
+        <div class="slider-container">
+            <label for="low-G">Low (Black)</label>
+            <button id="low-decrement-G">-</button>
+            <input type="range" id="low-G" min="0" max="65535" value="0" step="1">
+            <button id="low-increment-G">+</button>
+            <span class="value-display" id="low-value-16bit-G">8-bit: 0</span>
+            <input type="number" id="low-input-G" min="0" max="65535" value="0">
+        </div>
+        <div class="slider-container">
+            <label for="high-G">High (White)</label>
+            <button id="high-decrement-G">-</button>
+            <input type="range" id="high-G" min="0" max="65535" value="65535" step="1">
+            <button id="high-increment-G">+</button>
+            <span class="value-display" id="high-value-16bit-G">8-bit: 255</span>
+            <input type="number" id="high-input-G" min="0" max="65535" value="65535">
+        </div>
+        <button id="zscale-G">ZScale</button>
+    </div>
+
+    <div class="image-container" id="image-container-B">
+        <canvas id="imageCanvas-B" width="800" height="800"></canvas>
+        <div class="slider-container">
+            <label for="low-B">Low (Black)</label>
+            <button id="low-decrement-B">-</button>
+            <input type="range" id="low-B" min="0" max="65535" value="0" step="1">
+            <button id="low-increment-B">+</button>
+            <span class="value-display" id="low-value-16bit-B">8-bit: 0</span>
+            <input type="number" id="low-input-B" min="0" max="65535" value="0">
+        </div>
+        <div class="slider-container">
+            <label for="high-B">High (White)</label>
+            <button id="high-decrement-B">-</button>
+            <input type="range" id="high-B" min="0" max="65535" value="65535" step="1">
+            <button id="high-increment-B">+</button>
+            <span class="value-display" id="high-value-16bit-B">8-bit: 255</span>
+            <input type="number" id="high-input-B" min="0" max="65535" value="65535">
+        </div>
+        <button id="zscale-B">ZScale</button>
+    </div>
+
+    <button id="generate-rgb-file">Generate RGB File</button>
+
+    <script>
+        const images = ['R', 'G', 'B'];
+        const imageElements = {};
+        const canvasElements = {};
+        const ctxElements = {};
+        const lowSliders = {};
+        const highSliders = {};
+        const lowInputs = {};
+        const highInputs = {};
+        const lowValue16Bits = {};
+        const highValue16Bits = {};
+
+
+        images.forEach(filter => {
+            imageElements[filter] = new Image();
+            canvasElements[filter] = document.getElementById(`imageCanvas-${filter}`);
+            ctxElements[filter] = canvasElements[filter].getContext('2d');
+            lowSliders[filter] = document.getElementById(`low-${filter}`);
+            highSliders[filter] = document.getElementById(`high-${filter}`);
+            lowInputs[filter] = document.getElementById(`low-input-${filter}`);
+            highInputs[filter] = document.getElementById(`high-input-${filter}`);
+            lowValue16Bits[filter] = document.getElementById(`low-value-16bit-${filter}`);
+            highValue16Bits[filter] = document.getElementById(`high-value-16bit-${filter}`);
+
+            fetchImageData(filter);
+
+            document.getElementById(`zscale-${filter}`).addEventListener('click', () => {
+                zscaleImage(filter);
+            });
+        });
+
+        const originalImageData = {};
+
+        async function generateRGBFile() {
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/rgb`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        limits_r: [parseInt(lowSliders['R'].value), parseInt(highSliders['R'].value)],
+                        limits_g: [parseInt(lowSliders['G'].value), parseInt(highSliders['G'].value)],
+                        limits_b: [parseInt(lowSliders['B'].value), parseInt(highSliders['B'].value)]
+                    })
+                });
+            } catch (error) {
+                console.error('Error generating RGB file:', error);
+            }
+        }
+
+        async function fetchImageData(filter) {
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/raw_data`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ filter })
+                });
+                const responseJson = await response.json();
+                const raw16BitData = new Uint16Array(responseJson.data);
+                const width = responseJson.width;
+                const height = responseJson.height;
+
+                // Store the original 16-bit image data
+                originalImageData[filter] = raw16BitData;
+
+                // Convert 16-bit data to 8-bit for display
+                const imageData8Bit = new Uint8ClampedArray(width * height * 4);
+
+                for (let i = 0; i < raw16BitData.length; i++) {
+                    const value16Bit = raw16BitData[i];
+                    const value8Bit = Math.floor(value16Bit / 257);
+                    imageData8Bit[i * 4] = value8Bit;     // Red
+                    imageData8Bit[i * 4 + 1] = value8Bit; // Green
+                    imageData8Bit[i * 4 + 2] = value8Bit; // Blue
+                    imageData8Bit[i * 4 + 3] = 255;       // Alpha
+                }
+
+                // Display the 8-bit image data on the canvas
+                canvasElements[filter].width = width;
+                canvasElements[filter].height = height;
+                const newImageDataObject = new ImageData(imageData8Bit, width, height);
+                ctxElements[filter].putImageData(newImageDataObject, 0, 0);
+            } catch (error) {
+                console.error(`Error fetching raw 16-bit data for filter ${filter}:`, error);
+            }
+    }
+
+    function zscaleImage(filter) {
+        const imageData = originalImageData[filter];
+        const histogram = new Array(65536).fill(0); // 16-bit range
+
+        for (let i = 0; i < imageData.length; i++) {
+            histogram[imageData[i]]++; // Use 16-bit values directly
+        }
+
+        let total = 0;
+        const clipLimit = 0.01 * imageData.length;
+        let low = 0;
+        let high = 65535;
+
+        for (let i = 0; i < 65536; i++) {
+            total += histogram[i];
+            if (total > clipLimit) {
+                low = i;
+                break;
+            }
+        }
+
+        total = 0;
+        for (let i = 65535; i >= 0; i--) {
+            total += histogram[i];
+            if (total > clipLimit) {
+                high = i;
+                break;
+            }
+        }
+
+        lowSliders[filter].value = low;
+        highSliders[filter].value = high;
+        lowInputs[filter].value = low;
+        highInputs[filter].value = high;
+        updateValueDisplays(filter);
+        updateImageRendering(filter);
+    }
+
+        function updateImageRendering(filter) {
+            const low16Bit = parseInt(lowSliders[filter].value);
+            const high16Bit = parseInt(highSliders[filter].value);
+
+            // Convert 16-bit values to 8-bit
+            const low8Bit = Math.floor(low16Bit / 257);
+            const high8Bit = Math.floor(high16Bit / 257);
+
+            // Normalize the 8-bit data for display based on slider values
+            const width = canvasElements[filter].width;
+            const height = canvasElements[filter].height;
+            const imageData8Bit = new Uint8ClampedArray(width * height * 4);
+
+            for (let i = 0; i < originalImageData[filter].length; i++) {
+                const value16Bit = originalImageData[filter][i];
+                const value8Bit = Math.floor(value16Bit / 257);
+                const normalizedValue = ((value8Bit - low8Bit) / (high8Bit - low8Bit)) * 255;
+                const clampedValue = Math.max(0, Math.min(255, normalizedValue));
+                imageData8Bit[i * 4] = clampedValue;     // Red
+                imageData8Bit[i * 4 + 1] = clampedValue; // Green
+                imageData8Bit[i * 4 + 2] = clampedValue; // Blue
+                imageData8Bit[i * 4 + 3] = 255;          // Alpha
+            }
+
+            const newImageDataObject = new ImageData(imageData8Bit, width, height);
+            ctxElements[filter].putImageData(newImageDataObject, 0, 0);
+    }
+
+        function adjustSlider(filter, slider, increment) {
+            const step = parseInt(slider.step);
+            let newValue = parseInt(slider.value) + increment * step;
+            newValue = Math.max(parseInt(slider.min), Math.min(parseInt(slider.max), newValue));
+            slider.value = newValue;
+            updateValueDisplays(filter);
+            updateImageRendering(filter);
+        }
+
+        function updateValueDisplays(filter) {
+            const low = parseInt(lowSliders[filter].value);
+            const high = parseInt(highSliders[filter].value);
+            lowValue16Bits[filter].textContent = `16-bit: ${low}`;
+            highValue16Bits[filter].textContent = `16-bit: ${high}`;
+            lowInputs[filter].value = low;
+            highInputs[filter].value = high;
+        }
+
+        images.forEach(filter => {
+            document.getElementById(`low-decrement-${filter}`).addEventListener('click', () => adjustSlider(filter, lowSliders[filter], -1));
+            document.getElementById(`low-increment-${filter}`).addEventListener('click', () => adjustSlider(filter, lowSliders[filter], 1));
+            document.getElementById(`high-decrement-${filter}`).addEventListener('click', () => adjustSlider(filter, highSliders[filter], -1));
+            document.getElementById(`high-increment-${filter}`).addEventListener('click', () => adjustSlider(filter, highSliders[filter], 1));
+
+            lowSliders[filter].addEventListener('input', () => {
+                updateValueDisplays(filter);
+                updateImageRendering(filter);
+            });
+
+            highSliders[filter].addEventListener('input', () => {
+                updateValueDisplays(filter);
+                updateImageRendering(filter);
+            });
+
+            lowInputs[filter].addEventListener('input', () => {
+                const value = parseInt(lowInputs[filter].value);
+                if (value >= 0 && value <= 255) {
+                    lowSliders[filter].value = value;
+                    updateValueDisplays(filter);
+                    updateImageRendering(filter);
+                }
+            });
+
+            highInputs[filter].addEventListener('input', () => {
+                const value = parseInt(highInputs[filter].value);
+                if (value >= 0 && value <= 255) {
+                    highSliders[filter].value = value;
+                    updateValueDisplays(filter);
+                    updateImageRendering(filter);
+                }
+            });
+
+            // add an event listener to fire off the RGB function call when the RBG button is clicked
+            document.getElementById('generate-rgb-file').addEventListener('click', generateRGBFile);
+        });
+    </script>
+</body>
+</html>

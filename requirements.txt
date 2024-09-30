@@ -1,0 +1,8 @@
+pillow
+astropy
+numpy
+flask
+flask-cors
+matplotlib
+ipython
+-e file:///Users/mdaily/Documents/fits2image/
