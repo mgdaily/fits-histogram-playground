@@ -5,4 +5,4 @@ flask
 flask-cors
 matplotlib
 ipython
--e file:///Users/mdaily/Documents/fits2image/
+fits2image @ git+https://github.com/LCOGT/fits2image@feature/linear-scale

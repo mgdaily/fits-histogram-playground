@@ -22,7 +22,7 @@
         <div class="slider-container">
             <label for="low-R">Low (Black)</label>
             <button id="low-decrement-R">-</button>
-            <input type="range" id="low-R" min="0" max="65535" value="0" step="1">
+            <input type="range" id="low-R" min="0" max="65535" value="0" step="500">
             <button id="low-increment-R">+</button>
             <span class="value-display" id="low-value-16bit-R">16-bit: 0</span>
             <input type="number" id="low-input-R" min="0" max="65535" value="0">
@@ -30,7 +30,7 @@
         <div class="slider-container">
             <label for="high-R">High (White)</label>
             <button id="high-decrement-R">-</button>
-            <input type="range" id="high-R" min="0" max="65535" value="65535" step="1">
+            <input type="range" id="high-R" min="0" max="65535" value="65535" step="500">
             <button id="high-increment-R">+</button>
             <span class="value-display" id="high-value-16bit-R">16-bit: 255</span>
             <input type="number" id="high-input-R" min="0" max="65535" value="65535">
@@ -43,7 +43,7 @@
         <div class="slider-container">
             <label for="low-G">Low (Black)</label>
             <button id="low-decrement-G">-</button>
-            <input type="range" id="low-G" min="0" max="65535" value="0" step="1">
+            <input type="range" id="low-G" min="0" max="65535" value="0" step="500">
             <button id="low-increment-G">+</button>
             <span class="value-display" id="low-value-16bit-G">8-bit: 0</span>
             <input type="number" id="low-input-G" min="0" max="65535" value="0">
@@ -51,7 +51,7 @@
         <div class="slider-container">
             <label for="high-G">High (White)</label>
             <button id="high-decrement-G">-</button>
-            <input type="range" id="high-G" min="0" max="65535" value="65535" step="1">
+            <input type="range" id="high-G" min="0" max="65535" value="65535" step="500">
             <button id="high-increment-G">+</button>
             <span class="value-display" id="high-value-16bit-G">8-bit: 255</span>
             <input type="number" id="high-input-G" min="0" max="65535" value="65535">
@@ -64,7 +64,7 @@
         <div class="slider-container">
             <label for="low-B">Low (Black)</label>
             <button id="low-decrement-B">-</button>
-            <input type="range" id="low-B" min="0" max="65535" value="0" step="1">
+            <input type="range" id="low-B" min="0" max="65535" value="0" step="500">
             <button id="low-increment-B">+</button>
             <span class="value-display" id="low-value-16bit-B">8-bit: 0</span>
             <input type="number" id="low-input-B" min="0" max="65535" value="0">
@@ -72,12 +72,17 @@
         <div class="slider-container">
             <label for="high-B">High (White)</label>
             <button id="high-decrement-B">-</button>
-            <input type="range" id="high-B" min="0" max="65535" value="65535" step="1">
+            <input type="range" id="high-B" min="0" max="65535" value="65535" step="500">
             <button id="high-increment-B">+</button>
             <span class="value-display" id="high-value-16bit-B">8-bit: 255</span>
             <input type="number" id="high-input-B" min="0" max="65535" value="65535">
         </div>
         <button id="zscale-B">ZScale</button>
+    </div>
+
+    <div class="image-container" id="image-container-RGB">
+        <canvas id="imageCanvas-RGB" width="800" height="800"></canvas>
+        <button id="preview-RGB">Preview RGB Image</button>
     </div>
 
     <button id="generate-rgb-file">Generate RGB File</button>
@@ -113,6 +118,7 @@
             });
         });
 
+        generateRGBFile();
         const originalImageData = {};
 
         async function generateRGBFile() {
@@ -172,6 +178,34 @@
             }
     }
 
+    document.getElementById('preview-RGB').addEventListener('click', () => {
+        const canvasR = document.getElementById('imageCanvas-R');
+        const canvasG = document.getElementById('imageCanvas-G');
+        const canvasB = document.getElementById('imageCanvas-B');
+        const canvasRGB = document.getElementById('imageCanvas-RGB');
+        const ctxR = canvasR.getContext('2d');
+        const ctxG = canvasG.getContext('2d');
+        const ctxB = canvasB.getContext('2d');
+        const ctxRGB = canvasRGB.getContext('2d');
+
+        const width = canvasR.width;
+        const height = canvasR.height;
+
+        const imageDataR = ctxR.getImageData(0, 0, width, height);
+        const imageDataG = ctxG.getImageData(0, 0, width, height);
+        const imageDataB = ctxB.getImageData(0, 0, width, height);
+        const imageDataRGB = ctxRGB.createImageData(width, height);
+
+        for (let i = 0; i < imageDataR.data.length; i += 4) {
+            imageDataRGB.data[i] = imageDataR.data[i];     // Red
+            imageDataRGB.data[i + 1] = imageDataG.data[i]; // Green
+            imageDataRGB.data[i + 2] = imageDataB.data[i]; // Blue
+            imageDataRGB.data[i + 3] = 255;                // Alpha
+        }
+
+        ctxRGB.putImageData(imageDataRGB, 0, 0);
+    });
+
     function zscaleImage(filter) {
         const imageData = originalImageData[filter];
         const histogram = new Array(65536).fill(0); // 16-bit range
@@ -208,6 +242,7 @@
         highInputs[filter].value = high;
         updateValueDisplays(filter);
         updateImageRendering(filter);
+        generateRGBFile();
     }
 
         function updateImageRendering(filter) {
@@ -257,19 +292,30 @@
         }
 
         images.forEach(filter => {
-            document.getElementById(`low-decrement-${filter}`).addEventListener('click', () => adjustSlider(filter, lowSliders[filter], -1));
-            document.getElementById(`low-increment-${filter}`).addEventListener('click', () => adjustSlider(filter, lowSliders[filter], 1));
-            document.getElementById(`high-decrement-${filter}`).addEventListener('click', () => adjustSlider(filter, highSliders[filter], -1));
-            document.getElementById(`high-increment-${filter}`).addEventListener('click', () => adjustSlider(filter, highSliders[filter], 1));
-
+            document.getElementById(`low-decrement-${filter}`).addEventListener('click', () => { 
+                adjustSlider(filter, lowSliders[filter], -1)
+                generateRGBFile();
+            });
+            document.getElementById(`low-increment-${filter}`).addEventListener('click', () => {
+                adjustSlider(filter, lowSliders[filter], 1)
+                generateRGBFile();
+            });
+            document.getElementById(`high-decrement-${filter}`).addEventListener('click', () => {adjustSlider(filter, highSliders[filter], -1)
+                generateRGBFile();
+            });
+            document.getElementById(`high-increment-${filter}`).addEventListener('click', () => {
+                adjustSlider(filter, highSliders[filter], 1);
+                generateRGBFile()});
             lowSliders[filter].addEventListener('input', () => {
                 updateValueDisplays(filter);
                 updateImageRendering(filter);
+                generateRGBFile();
             });
 
             highSliders[filter].addEventListener('input', () => {
                 updateValueDisplays(filter);
                 updateImageRendering(filter);
+                generateRGBFile();
             });
 
             lowInputs[filter].addEventListener('input', () => {
@@ -278,6 +324,7 @@
                     lowSliders[filter].value = value;
                     updateValueDisplays(filter);
                     updateImageRendering(filter);
+                    generateRGBFile();
                 }
             });
 
@@ -287,6 +334,7 @@
                     highSliders[filter].value = value;
                     updateValueDisplays(filter);
                     updateImageRendering(filter);
+                    generateRGBFile();
                 }
             });
 
